@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { requireAuth } from "../../middleware/auth.js";
 import { requireRole } from "../../middleware/roles.js";
+import { AdminRequest } from "../../models/AdminRequest.js";
 import { Community } from "../../models/Community.js";
 import { CommunityRequest } from "../../models/CommunityRequest.js";
 import { Post } from "../../models/Post.js";
@@ -19,14 +20,19 @@ function createSlug(name) {
 superadminRouter.use(requireAuth, requireRole("superadmin"));
 
 superadminRouter.get("/overview", async (_req, res) => {
-  const [requests, communities, users, totalPosts] = await Promise.all([
+  const [adminRequests, requests, communities, users, totalPosts] = await Promise.all([
+    AdminRequest.find({})
+      .populate("userId", "fullName username email role")
+      .sort({ createdAt: -1 })
+      .lean(),
     CommunityRequest.find({}).populate("requesterId", "fullName username email").sort({ createdAt: -1 }).lean(),
     Community.find({}).lean(),
-    User.find({}, { fullName: 1, username: 1, email: 1, roles: 1, status: 1 }).sort({ createdAt: -1 }).lean(),
+    User.find({}, { fullName: 1, username: 1, email: 1, role: 1, status: 1 }).sort({ createdAt: -1 }).lean(),
     Post.countDocuments()
   ]);
 
   res.json({
+    adminRequests,
     requests,
     communities: communities.map((community) => ({
       ...community,
@@ -39,6 +45,38 @@ superadminRouter.get("/overview", async (_req, res) => {
       totalPosts
     }
   });
+});
+
+superadminRouter.patch("/admin-requests/:requestId", async (req, res) => {
+  const { action, rejectionReason } = req.body;
+
+  if (!["approve", "reject"].includes(action)) {
+    return res.status(400).json({ message: "Action must be approve or reject." });
+  }
+
+  const request = await AdminRequest.findById(req.params.requestId);
+
+  if (!request) {
+    return res.status(404).json({ message: "Admin request not found." });
+  }
+
+  if (request.status !== "pending") {
+    return res.status(400).json({ message: "Request has already been reviewed." });
+  }
+
+  request.status = action === "approve" ? "approved" : "rejected";
+  request.reviewedBy = req.currentUser._id;
+  request.reviewedAt = new Date();
+  request.rejectionReason = rejectionReason;
+
+  await User.findByIdAndUpdate(request.userId, {
+    role: action === "approve" ? "college_admin" : "user",
+    college: request.collegeName
+  });
+
+  await request.save();
+
+  res.json({ request });
 });
 
 superadminRouter.patch("/community-requests/:requestId", async (req, res) => {
@@ -77,8 +115,7 @@ superadminRouter.patch("/community-requests/:requestId", async (req, res) => {
     });
 
     if (creator) {
-      const safeRoles = (creator.roles ?? []).filter((role) => ["user", "admin", "superadmin"].includes(role));
-      creator.roles = Array.from(new Set([...safeRoles, "user", "admin"]));
+      if (creator.role !== "superadmin") creator.role = "college_admin";
       creator.joinedCommunities.addToSet(community._id);
       await creator.save();
     }
@@ -90,20 +127,54 @@ superadminRouter.patch("/community-requests/:requestId", async (req, res) => {
   res.json({ request });
 });
 
-superadminRouter.patch("/users/:userId/roles", async (req, res) => {
-  const roles = Array.isArray(req.body.roles) ? req.body.roles : [];
-  const allowedRoles = ["user", "admin", "superadmin"];
-  const cleanedRoles = roles.filter((role) => allowedRoles.includes(role));
+superadminRouter.patch("/communities/:communityId/moderation", async (req, res) => {
+  const { action } = req.body;
 
-  if (!cleanedRoles.length) {
-    return res.status(400).json({ message: "At least one valid role is required." });
+  if (!["hide", "unhide", "freeze", "unfreeze", "delete"].includes(action)) {
+    return res.status(400).json({ message: "Invalid community moderation action." });
   }
 
-  const user = await User.findByIdAndUpdate(req.params.userId, { roles: cleanedRoles }, { new: true });
+  const community = await Community.findById(req.params.communityId);
+
+  if (!community) {
+    return res.status(404).json({ message: "Community not found." });
+  }
+
+  if (action === "delete") {
+    await community.deleteOne();
+    return res.json({ message: "Community deleted." });
+  }
+
+  if (action === "hide") community.isHidden = true;
+  if (action === "unhide") community.isHidden = false;
+  if (action === "freeze") community.isFrozen = true;
+  if (action === "unfreeze") community.isFrozen = false;
+
+  await community.save();
+
+  res.json({ community });
+});
+
+superadminRouter.patch("/users/:userId/role", async (req, res) => {
+  const { role } = req.body;
+  const allowedRoles = ["user", "college_admin_pending", "college_admin"];
+
+  if (!allowedRoles.includes(role)) {
+    return res.status(400).json({ message: "Choose a valid non-superadmin role." });
+  }
+
+  const user = await User.findById(req.params.userId);
 
   if (!user) {
     return res.status(404).json({ message: "User not found." });
   }
+
+  if (user.email === "shubhankeranand18@gmail.com" || user.role === "superadmin") {
+    return res.status(403).json({ message: "The single superadmin role cannot be edited here." });
+  }
+
+  user.role = role;
+  await user.save();
 
   res.json({ user });
 });

@@ -14,6 +14,8 @@ const postSchema = new mongoose.Schema(
     resourceUrl: String,
     tags: { type: [String], default: [] },
     isAnonymous: { type: Boolean, default: false },
+    isAnnouncement: { type: Boolean, default: false },
+    isPinned: { type: Boolean, default: false },
     score: { type: Number, default: 0 },
     repliesCount: { type: Number, default: 0 }
   },

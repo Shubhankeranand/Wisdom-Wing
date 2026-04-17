@@ -8,9 +8,11 @@ export function requireRole(...allowedRoles) {
       return res.status(404).json({ message: "User profile not found." });
     }
 
-    const hasRole = allowedRoles.some((role) => user.roles?.includes(role));
+    const hasRole = allowedRoles.includes(user.role);
+    const isInvalidSuperadmin =
+      user.role === "superadmin" && user.email !== "shubhankeranand18@gmail.com";
 
-    if (!hasRole) {
+    if (!hasRole || isInvalidSuperadmin) {
       return res.status(403).json({ message: "Insufficient permissions." });
     }
 

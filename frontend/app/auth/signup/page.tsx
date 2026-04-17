@@ -14,15 +14,17 @@ export default function SignupPage() {
     lastName: "",
     email: "",
     password: "",
-    graduationYear: ""
+    graduationYear: "",
+    requestedRole: "user" as "user" | "college_admin_pending"
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const routeForUser = (syncedUser: Awaited<ReturnType<typeof loginWithGoogle>>) => {
+    if (syncedUser?.role === "superadmin") return "/superadmin";
+    if (syncedUser?.role === "college_admin") return "/admin";
+    if (syncedUser?.role === "college_admin_pending") return "/admin-request";
     if (!syncedUser?.onboardingCompleted) return "/onboarding";
-    if (syncedUser.roles?.includes("superadmin")) return "/superadmin";
-    if (syncedUser.roles?.includes("admin")) return "/admin";
     return "/home";
   };
 
@@ -32,8 +34,8 @@ export default function SignupPage() {
     setLoading(true);
 
     try {
-      await registerWithEmail(form);
-      router.push("/onboarding");
+      const syncedUser = await registerWithEmail(form);
+      router.push(routeForUser(syncedUser));
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : "Unable to create account");
     } finally {
@@ -61,6 +63,28 @@ export default function SignupPage() {
           </div>
           <form className="space-y-4" onSubmit={handleSubmit}>
             <div className="grid gap-4 md:grid-cols-2">
+              <div className="md:col-span-2 grid gap-3 rounded-xl border border-border bg-bg p-4 md:grid-cols-2">
+                <button
+                  type="button"
+                  className={`rounded-lg border px-4 py-3 text-left transition ${
+                    form.requestedRole === "user" ? "border-primary bg-primary/10" : "border-border"
+                  }`}
+                  onClick={() => setForm((current) => ({ ...current, requestedRole: "user" }))}
+                >
+                  <span className="block font-semibold">Join as User</span>
+                  <span className="text-sm text-textMuted">Ask, answer, join communities, and collaborate.</span>
+                </button>
+                <button
+                  type="button"
+                  className={`rounded-lg border px-4 py-3 text-left transition ${
+                    form.requestedRole === "college_admin_pending" ? "border-primary bg-primary/10" : "border-border"
+                  }`}
+                  onClick={() => setForm((current) => ({ ...current, requestedRole: "college_admin_pending" }))}
+                >
+                  <span className="block font-semibold">Join as College Admin</span>
+                  <span className="text-sm text-textMuted">Submit verification before managing communities.</span>
+                </button>
+              </div>
               <input
                 className="rounded-lg border border-border bg-bg px-4 py-3 focus:border-primary focus:outline-none"
                 placeholder="First name"

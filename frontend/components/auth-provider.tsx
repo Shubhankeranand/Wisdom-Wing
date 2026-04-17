@@ -29,6 +29,7 @@ type RegisterInput = {
   email: string;
   password: string;
   graduationYear: string;
+  requestedRole: "user" | "college_admin_pending";
 };
 
 type AuthContextValue = {
@@ -59,7 +60,8 @@ async function syncUserProfile(extra?: Partial<RegisterInput>) {
       lastName: extra?.lastName ?? currentUser.displayName?.split(" ").slice(1).join(" ") ?? "",
       email: currentUser.email,
       graduationYear: extra?.graduationYear ? Number(extra.graduationYear) : undefined,
-      avatarUrl: currentUser.photoURL ?? null
+      avatarUrl: currentUser.photoURL ?? null,
+      requestedRole: extra?.requestedRole
     })
   });
 
@@ -102,14 +104,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setAppUser(syncedUser);
         return syncedUser;
       },
-      registerWithEmail: async ({ firstName, lastName, email, password, graduationYear }) => {
+      registerWithEmail: async ({ firstName, lastName, email, password, graduationYear, requestedRole }) => {
         const auth = getFirebaseAuth();
         const credential = await createUserWithEmailAndPassword(auth, email, password);
         await updateProfile(credential.user, {
           displayName: `${firstName} ${lastName}`.trim()
         });
         await sendEmailVerification(credential.user);
-        const syncedUser = await syncUserProfile({ firstName, lastName, email, graduationYear });
+        const syncedUser = await syncUserProfile({ firstName, lastName, email, graduationYear, requestedRole });
         setAppUser(syncedUser);
         return syncedUser;
       },

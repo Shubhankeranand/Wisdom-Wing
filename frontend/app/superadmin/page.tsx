@@ -19,13 +19,26 @@ export default function SuperadminPage() {
     loadOverview();
   }, []);
 
+  const reviewAdminRequest = async (requestId: string, action: "approve" | "reject") => {
+    await superadminService.reviewAdminRequest(requestId, action);
+    await loadOverview();
+  };
+
   const reviewRequest = async (requestId: string, action: "approve" | "reject") => {
     await superadminService.reviewCommunityRequest(requestId, action);
     await loadOverview();
   };
 
-  const assignRoles = async (userId: string, roles: string[]) => {
-    await superadminService.updateUserRoles(userId, roles);
+  const assignRole = async (userId: string, role: "user" | "college_admin_pending" | "college_admin") => {
+    await superadminService.updateUserRole(userId, role);
+    await loadOverview();
+  };
+
+  const moderateCommunity = async (
+    communityId: string,
+    action: "hide" | "unhide" | "freeze" | "unfreeze" | "delete"
+  ) => {
+    await superadminService.moderateCommunity(communityId, action);
     await loadOverview();
   };
 
@@ -37,7 +50,7 @@ export default function SuperadminPage() {
         <div className="space-y-5">
           <Tabs
             tabs={[
-              { label: "Community Requests", value: "requests" },
+              { label: "Admin Requests", value: "requests" },
               { label: "Communities", value: "communities" },
               { label: "Users", value: "users" },
               { label: "Stats", value: "stats" }
@@ -47,11 +60,44 @@ export default function SuperadminPage() {
           />
 
           {tab === "requests" ? (
-            <Card className="space-y-4">
-              <h3 className="text-xl font-semibold">Community Requests</h3>
-              {overview.requests.length ? (
-                overview.requests.map((request) => (
-                  <div key={request._id} className="rounded-lg border border-border p-4">
+            <div className="space-y-5">
+              <Card className="space-y-4">
+                <h3 className="text-xl font-semibold">Pending College Admin Requests</h3>
+                {overview.adminRequests.length ? (
+                  overview.adminRequests.map((request) => (
+                    <div key={request._id} className="rounded-lg border border-border p-4">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <p className="font-semibold">{request.userId?.fullName || request.userId?.email}</p>
+                          <p className="text-sm text-textMuted">
+                            {request.collegeName} • {request.designation} • {request.status}
+                          </p>
+                          <p className="mt-2 text-sm text-textMuted">{request.reason}</p>
+                          <a href={request.proofUrl} target="_blank" className="mt-2 inline-block text-sm text-primary">
+                            Open proof
+                          </a>
+                        </div>
+                        {request.status === "pending" ? (
+                          <div className="flex gap-2">
+                            <Button onClick={() => reviewAdminRequest(request._id, "approve")}>Approve</Button>
+                            <Button variant="secondary" onClick={() => reviewAdminRequest(request._id, "reject")}>
+                              Reject
+                            </Button>
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-textMuted">No college admin requests yet.</p>
+                )}
+              </Card>
+
+              <Card className="space-y-4">
+                <h3 className="text-xl font-semibold">Community Creation Requests</h3>
+                {overview.requests.length ? (
+                  overview.requests.map((request) => (
+                    <div key={request._id} className="rounded-lg border border-border p-4">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
                         <p className="font-semibold">{request.communityName}</p>
@@ -75,11 +121,12 @@ export default function SuperadminPage() {
                       ) : null}
                     </div>
                   </div>
-                ))
-              ) : (
-                <p className="text-sm text-textMuted">No community requests yet.</p>
-              )}
-            </Card>
+                  ))
+                ) : (
+                  <p className="text-sm text-textMuted">No community requests yet.</p>
+                )}
+              </Card>
+            </div>
           ) : null}
 
           {tab === "communities" ? (
@@ -90,7 +137,26 @@ export default function SuperadminPage() {
                   <p className="font-semibold">{community.name}</p>
                   <p className="text-sm text-textMuted">
                     {community.type} • {community.memberCount ?? 0} members
+                    {community.isHidden ? " • hidden" : ""}
+                    {community.isFrozen ? " • frozen" : ""}
                   </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button
+                      variant="secondary"
+                      onClick={() => moderateCommunity(community._id, community.isHidden ? "unhide" : "hide")}
+                    >
+                      {community.isHidden ? "Unhide" : "Hide"}
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      onClick={() => moderateCommunity(community._id, community.isFrozen ? "unfreeze" : "freeze")}
+                    >
+                      {community.isFrozen ? "Unfreeze" : "Freeze"}
+                    </Button>
+                    <Button variant="secondary" onClick={() => moderateCommunity(community._id, "delete")}>
+                      Delete
+                    </Button>
+                  </div>
                 </div>
               ))}
             </Card>
@@ -102,16 +168,16 @@ export default function SuperadminPage() {
               {overview.users.map((user) => (
                 <div key={user._id} className="rounded-lg border border-border p-4">
                   <p className="font-semibold">{user.fullName || user.username || user.email}</p>
-                  <p className="text-sm text-textMuted">{user.email} • {user.roles.join(", ")}</p>
+                  <p className="text-sm text-textMuted">{user.email} • {user.role}</p>
                   <div className="mt-3 flex flex-wrap gap-2">
-                    <Button variant="secondary" onClick={() => assignRoles(user._id, ["user"])}>
+                    <Button variant="secondary" onClick={() => assignRole(user._id, "user")}>
                       User
                     </Button>
-                    <Button variant="secondary" onClick={() => assignRoles(user._id, ["user", "admin"])}>
-                      Admin
+                    <Button variant="secondary" onClick={() => assignRole(user._id, "college_admin_pending")}>
+                      Pending Admin
                     </Button>
-                    <Button variant="secondary" onClick={() => assignRoles(user._id, ["superadmin"])}>
-                      Superadmin
+                    <Button variant="secondary" onClick={() => assignRole(user._id, "college_admin")}>
+                      College Admin
                     </Button>
                   </div>
                 </div>

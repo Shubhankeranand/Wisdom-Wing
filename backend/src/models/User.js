@@ -77,10 +77,11 @@ const userSchema = new mongoose.Schema(
         ref: "Resource"
       }
     ],
-    roles: {
-      type: [String],
-      enum: ["user", "admin", "superadmin"],
-      default: ["user"]
+    role: {
+      type: String,
+      enum: ["user", "college_admin_pending", "college_admin", "superadmin"],
+      default: "user",
+      index: true
     }
   },
   { timestamps: true }

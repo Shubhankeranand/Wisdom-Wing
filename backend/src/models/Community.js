@@ -11,6 +11,8 @@ const communitySchema = new mongoose.Schema(
       enum: ["college", "open"],
       required: true
     },
+    isHidden: { type: Boolean, default: false },
+    isFrozen: { type: Boolean, default: false },
     college: String,
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     adminIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],

@@ -85,6 +85,21 @@ export const userService = {
   getDashboard: () => apiFetch<DashboardPayload>("/api/users/dashboard")
 };
 
+export type AdminRequestPayload = {
+  collegeName: string;
+  designation: string;
+  proofUrl: string;
+  reason: string;
+};
+
+export const adminRequestService = {
+  submit: (payload: AdminRequestPayload) =>
+    apiFetch<{ request: { _id: string; status: string } }>("/api/admin-requests", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    })
+};
+
 export const communityService = {
   list: (query = "") =>
     apiFetch<{ communities: Community[] }>(
@@ -211,6 +226,16 @@ export type AdminOverviewPayload = {
 
 export const adminService = {
   overview: () => apiFetch<AdminOverviewPayload>("/api/admin/overview"),
+  createCommunity: (payload: { name: string; description?: string; college: string; tags: string[] }) =>
+    apiFetch<{ community: Community }>("/api/admin/communities", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    }),
+  updateCommunity: (communityId: string, payload: Partial<Pick<Community, "name" | "description" | "college">> & { tags?: string[] }) =>
+    apiFetch<{ community: Community }>(`/api/admin/communities/${communityId}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload)
+    }),
   reviewJoinRequest: (communityId: string, userId: string, action: "approve" | "reject") =>
     apiFetch<{ message: string }>(`/api/admin/communities/${communityId}/join-requests/${userId}`, {
       method: "PATCH",
@@ -231,10 +256,35 @@ export const adminService = {
   deleteEvent: (eventId: string) =>
     apiFetch<{ message: string }>(`/api/admin/events/${eventId}`, {
       method: "DELETE"
+    }),
+  createAnnouncement: (communityId: string, payload: { title: string; content: string; isPinned: boolean }) =>
+    apiFetch<{ post: CommunityPost }>(`/api/admin/communities/${communityId}/posts/announcements`, {
+      method: "POST",
+      body: JSON.stringify(payload)
+    }),
+  setPostPinned: (postId: string, isPinned: boolean) =>
+    apiFetch<{ post: CommunityPost }>(`/api/admin/posts/${postId}/pin`, {
+      method: "PATCH",
+      body: JSON.stringify({ isPinned })
     })
 };
 
 export type SuperadminOverviewPayload = {
+  adminRequests: Array<{
+    _id: string;
+    collegeName: string;
+    designation: string;
+    proofUrl: string;
+    reason: string;
+    status: "pending" | "approved" | "rejected";
+    userId?: {
+      _id: string;
+      fullName?: string;
+      username?: string;
+      email: string;
+      role: string;
+    };
+  }>;
   requests: Array<{
     _id: string;
     type: "college" | "open";
@@ -255,7 +305,7 @@ export type SuperadminOverviewPayload = {
     fullName?: string;
     username?: string;
     email: string;
-    roles: string[];
+    role: string;
     status?: string;
   }>;
   stats: {
@@ -267,14 +317,24 @@ export type SuperadminOverviewPayload = {
 
 export const superadminService = {
   overview: () => apiFetch<SuperadminOverviewPayload>("/api/superadmin/overview"),
+  reviewAdminRequest: (requestId: string, action: "approve" | "reject") =>
+    apiFetch<{ request: { _id: string; status: string } }>(`/api/superadmin/admin-requests/${requestId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ action })
+    }),
   reviewCommunityRequest: (requestId: string, action: "approve" | "reject") =>
     apiFetch<{ request: { _id: string; status: string } }>(`/api/superadmin/community-requests/${requestId}`, {
       method: "PATCH",
       body: JSON.stringify({ action })
     }),
-  updateUserRoles: (userId: string, roles: string[]) =>
-    apiFetch<{ user: { _id: string; roles: string[] } }>(`/api/superadmin/users/${userId}/roles`, {
+  moderateCommunity: (communityId: string, action: "hide" | "unhide" | "freeze" | "unfreeze" | "delete") =>
+    apiFetch<{ community?: Community; message?: string }>(`/api/superadmin/communities/${communityId}/moderation`, {
       method: "PATCH",
-      body: JSON.stringify({ roles })
+      body: JSON.stringify({ action })
+    }),
+  updateUserRole: (userId: string, role: "user" | "college_admin_pending" | "college_admin") =>
+    apiFetch<{ user: { _id: string; role: string } }>(`/api/superadmin/users/${userId}/role`, {
+      method: "PATCH",
+      body: JSON.stringify({ role })
     })
 };

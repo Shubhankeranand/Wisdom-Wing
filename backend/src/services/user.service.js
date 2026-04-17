@@ -24,7 +24,8 @@ export function serializeUser(user) {
     savedPosts: user.savedPosts ?? [],
     savedQuestions: user.savedQuestions ?? [],
     savedResources: user.savedResources ?? [],
-    roles: user.roles ?? ["user"]
+    role: user.role ?? "user",
+    roles: [user.role ?? "user"]
   };
 }
 

@@ -16,7 +16,8 @@ export type AppUser = {
   interests: string[];
   avatarUrl?: string;
   onboardingCompleted: boolean;
-  roles?: Array<"user" | "admin" | "superadmin">;
+  role: "user" | "college_admin_pending" | "college_admin" | "superadmin";
+  roles?: Array<"user" | "college_admin_pending" | "college_admin" | "superadmin">;
   verificationStatus?: string;
   collegeIdVerification?: {
     status: "not_submitted" | "pending" | "approved" | "rejected";
@@ -35,6 +36,8 @@ export type Community = {
   verificationPending?: boolean;
   joinRequestPending?: boolean;
   isAdmin?: boolean;
+  isHidden?: boolean;
+  isFrozen?: boolean;
   activePosts?: number;
   joinRequests?: Array<{
     userId: {
@@ -71,6 +74,8 @@ export type CommunityPost = {
   resourceUrl?: string;
   tags: string[];
   isAnonymous: boolean;
+  isAnnouncement?: boolean;
+  isPinned?: boolean;
   score: number;
   repliesCount: number;
   authorId?: {

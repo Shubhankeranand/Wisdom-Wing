@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Bell, MoonStar, Plus, SunMedium } from "lucide-react";
 import { useAuth } from "@/components/auth-provider";
 import { GlobalSearch } from "@/components/global-search";
@@ -29,6 +29,7 @@ export function AppShell({
   const { theme, toggleTheme } = useTheme();
   const { user, appUser, loading, logout } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -39,12 +40,27 @@ export function AppShell({
       return;
     }
 
-    if (appUser && !appUser.onboardingCompleted) {
+    if (appUser?.role === "superadmin" && pathname !== "/superadmin") {
+      router.replace("/superadmin");
+      return;
+    }
+
+    if (appUser?.role === "college_admin" && pathname !== "/admin" && !pathname.startsWith("/community/")) {
+      router.replace("/admin");
+      return;
+    }
+
+    if (appUser?.role === "college_admin_pending" && pathname !== "/admin-request") {
+      router.replace("/admin-request");
+      return;
+    }
+
+    if (appUser && appUser.role === "user" && !appUser.onboardingCompleted) {
       router.replace("/onboarding");
     }
-  }, [appUser, loading, router, user]);
+  }, [appUser, loading, pathname, router, user]);
 
-  if (loading || !user || (appUser && !appUser.onboardingCompleted)) {
+  if (loading || !user || (appUser?.role === "user" && !appUser.onboardingCompleted)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-bg text-sm text-textMuted">
         Loading Wisdom Wing...
@@ -59,13 +75,15 @@ export function AppShell({
           <Link href="/" className="text-lg font-bold tracking-tight text-text">
             Wisdom Wing
           </Link>
-          <GlobalSearch />
-          <Link href="/communities" className="hidden md:inline-flex">
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Join Community
-          </Button>
-          </Link>
+          {appUser?.role === "user" ? <GlobalSearch /> : <div className="flex-1" />}
+          {appUser?.role === "user" ? (
+            <Link href="/communities" className="hidden md:inline-flex">
+              <Button>
+                <Plus className="mr-2 h-4 w-4" />
+                Join Community
+              </Button>
+            </Link>
+          ) : null}
           <button
             aria-label="Toggle theme"
             onClick={toggleTheme}
@@ -105,7 +123,7 @@ export function AppShell({
                   >
                     Settings
                   </button>
-                  {appUser?.roles?.includes("admin") ? (
+                  {appUser?.role === "college_admin" ? (
                     <button
                       className="block w-full rounded-lg px-3 py-2 text-left text-sm text-textMuted hover:bg-surfaceAlt hover:text-text"
                       onClick={() => {
@@ -116,7 +134,7 @@ export function AppShell({
                       Admin
                     </button>
                   ) : null}
-                  {appUser?.roles?.includes("superadmin") ? (
+                  {appUser?.role === "superadmin" ? (
                     <button
                       className="block w-full rounded-lg px-3 py-2 text-left text-sm text-textMuted hover:bg-surfaceAlt hover:text-text"
                       onClick={() => {
@@ -149,17 +167,19 @@ export function AppShell({
 
       <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:grid-cols-[240px_minmax(0,1fr)_300px] lg:px-6">
         <aside className="hidden lg:block">
-          <Card className="sticky top-24 space-y-3 p-4">
-            {navItems.map((item) => (
-              <Link
-                key={item.label}
-                href={item.href}
-                className="flex items-center justify-between rounded-lg px-3 py-2 text-sm text-textMuted transition hover:bg-surfaceAlt hover:text-text"
-              >
-                <span>{item.label}</span>
-              </Link>
-            ))}
-          </Card>
+          {appUser?.role === "user" ? (
+            <Card className="sticky top-24 space-y-3 p-4">
+              {navItems.map((item) => (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  className="flex items-center justify-between rounded-lg px-3 py-2 text-sm text-textMuted transition hover:bg-surfaceAlt hover:text-text"
+                >
+                  <span>{item.label}</span>
+                </Link>
+              ))}
+            </Card>
+          ) : null}
         </aside>
 
         <section className="space-y-5">

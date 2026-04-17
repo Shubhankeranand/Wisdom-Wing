@@ -15,14 +15,16 @@ authRouter.post("/login", (_req, res) => {
 
 authRouter.post("/session", requireAuth, async (req, res) => {
   const { uid, email, name, picture } = req.user;
-  const { firstName, lastName, graduationYear, avatarUrl } = req.body;
+  const { firstName, lastName, graduationYear, avatarUrl, requestedRole } = req.body;
 
   const isSuperadmin = email === "shubhankeranand18@gmail.com";
+  const defaultRole = requestedRole === "college_admin_pending" ? "college_admin_pending" : "user";
   const update = {
     $set: {
       firebaseUid: uid,
       email,
-      avatarUrl: avatarUrl || picture || null
+      avatarUrl: avatarUrl || picture || null,
+      ...(isSuperadmin ? { role: "superadmin" } : {})
     },
     $setOnInsert: {
       firstName: firstName || name?.split(" ")[0] || "",
@@ -30,10 +32,8 @@ authRouter.post("/session", requireAuth, async (req, res) => {
       fullName: [firstName || name?.split(" ")[0], lastName || name?.split(" ").slice(1).join(" ")]
         .filter(Boolean)
         .join(" "),
-      graduationYear: graduationYear ? Number(graduationYear) : undefined
-    },
-    $addToSet: {
-      roles: isSuperadmin ? "superadmin" : "user"
+      graduationYear: graduationYear ? Number(graduationYear) : undefined,
+      ...(!isSuperadmin ? { role: defaultRole } : {})
     }
   };
 
@@ -46,6 +46,14 @@ authRouter.post("/session", requireAuth, async (req, res) => {
       setDefaultsOnInsert: true
     }
   );
+
+  if (!isSuperadmin && user.role === "superadmin") {
+    user.role = "user";
+    await user.save();
+  } else if (!user.role) {
+    user.role = isSuperadmin ? "superadmin" : defaultRole;
+    await user.save();
+  }
 
   res.json({
     message: "Firebase session synced.",

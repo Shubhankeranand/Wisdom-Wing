@@ -9,13 +9,18 @@ import { User } from "../../models/User.js";
 export const adminRouter = Router();
 
 function canManageCommunity(user, community) {
-  return (
-    user.roles?.includes("superadmin") ||
-    community.adminIds?.some((adminId) => String(adminId) === String(user._id))
-  );
+  return community.adminIds?.some((adminId) => String(adminId) === String(user._id));
 }
 
-adminRouter.get("/overview", requireAuth, requireRole("admin", "superadmin"), async (req, res) => {
+function createSlug(name) {
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+adminRouter.get("/overview", requireAuth, requireRole("college_admin"), async (req, res) => {
   const communities = await Community.find({ adminIds: req.currentUser._id })
     .populate("joinRequests.userId", "fullName username college status")
     .lean();
@@ -41,7 +46,55 @@ adminRouter.get("/overview", requireAuth, requireRole("admin", "superadmin"), as
   });
 });
 
-adminRouter.patch("/communities/:communityId/join-requests/:userId", requireAuth, requireRole("admin", "superadmin"), async (req, res) => {
+adminRouter.post("/communities", requireAuth, requireRole("college_admin"), async (req, res) => {
+  const { name, description, college, tags } = req.body;
+
+  if (!name || !college) {
+    return res.status(400).json({ message: "Community name and college are required." });
+  }
+
+  const community = await Community.create({
+    name: name.trim(),
+    slug: `${createSlug(name)}-${Date.now()}`,
+    description,
+    type: "college",
+    college: college.trim(),
+    tags: Array.isArray(tags) ? tags.map(String).filter(Boolean) : [],
+    createdBy: req.currentUser._id,
+    adminIds: [req.currentUser._id],
+    memberIds: [req.currentUser._id]
+  });
+
+  await User.findByIdAndUpdate(req.currentUser._id, { $addToSet: { joinedCommunities: community._id } });
+
+  res.status(201).json({ community });
+});
+
+adminRouter.patch("/communities/:communityId", requireAuth, requireRole("college_admin"), async (req, res) => {
+  const community = await Community.findById(req.params.communityId);
+
+  if (!community) {
+    return res.status(404).json({ message: "Community not found." });
+  }
+
+  if (!canManageCommunity(req.currentUser, community)) {
+    return res.status(403).json({ message: "You cannot manage this community." });
+  }
+
+  for (const field of ["name", "description", "college"]) {
+    if (req.body[field] !== undefined) community[field] = String(req.body[field]).trim();
+  }
+
+  if (Array.isArray(req.body.tags)) {
+    community.tags = req.body.tags.map(String).filter(Boolean);
+  }
+
+  await community.save();
+
+  res.json({ community });
+});
+
+adminRouter.patch("/communities/:communityId/join-requests/:userId", requireAuth, requireRole("college_admin"), async (req, res) => {
   const { action } = req.body;
   const community = await Community.findById(req.params.communityId);
 
@@ -78,7 +131,7 @@ adminRouter.patch("/communities/:communityId/join-requests/:userId", requireAuth
   res.json({ message: `Join request ${action}d.` });
 });
 
-adminRouter.delete("/posts/:postId", requireAuth, requireRole("admin", "superadmin"), async (req, res) => {
+adminRouter.delete("/posts/:postId", requireAuth, requireRole("college_admin"), async (req, res) => {
   const post = await Post.findById(req.params.postId);
 
   if (!post) {
@@ -95,7 +148,55 @@ adminRouter.delete("/posts/:postId", requireAuth, requireRole("admin", "superadm
   res.json({ message: "Post deleted." });
 });
 
-adminRouter.post("/communities/:communityId/events", requireAuth, requireRole("admin", "superadmin"), async (req, res) => {
+adminRouter.post("/communities/:communityId/posts/announcements", requireAuth, requireRole("college_admin"), async (req, res) => {
+  const community = await Community.findById(req.params.communityId);
+  const { title, content, isPinned = true } = req.body;
+
+  if (!community) {
+    return res.status(404).json({ message: "Community not found." });
+  }
+
+  if (!canManageCommunity(req.currentUser, community)) {
+    return res.status(403).json({ message: "You cannot manage this community." });
+  }
+
+  if (!title || !content) {
+    return res.status(400).json({ message: "Announcement title and content are required." });
+  }
+
+  const post = await Post.create({
+    communityId: community._id,
+    authorId: req.currentUser._id,
+    postType: "discussion",
+    title: title.trim(),
+    content: content.trim(),
+    isAnnouncement: true,
+    isPinned: Boolean(isPinned)
+  });
+
+  res.status(201).json({ post });
+});
+
+adminRouter.patch("/posts/:postId/pin", requireAuth, requireRole("college_admin"), async (req, res) => {
+  const post = await Post.findById(req.params.postId);
+
+  if (!post) {
+    return res.status(404).json({ message: "Post not found." });
+  }
+
+  const community = await Community.findById(post.communityId);
+
+  if (!community || !canManageCommunity(req.currentUser, community)) {
+    return res.status(403).json({ message: "You cannot manage this post." });
+  }
+
+  post.isPinned = Boolean(req.body.isPinned);
+  await post.save();
+
+  res.json({ post });
+});
+
+adminRouter.post("/communities/:communityId/events", requireAuth, requireRole("college_admin"), async (req, res) => {
   const community = await Community.findById(req.params.communityId);
   const { title, description, startsAt, link } = req.body;
 
@@ -119,7 +220,7 @@ adminRouter.post("/communities/:communityId/events", requireAuth, requireRole("a
   res.status(201).json({ event });
 });
 
-adminRouter.patch("/events/:eventId", requireAuth, requireRole("admin", "superadmin"), async (req, res) => {
+adminRouter.patch("/events/:eventId", requireAuth, requireRole("college_admin"), async (req, res) => {
   const event = await Event.findById(req.params.eventId);
 
   if (!event) {
@@ -142,7 +243,7 @@ adminRouter.patch("/events/:eventId", requireAuth, requireRole("admin", "superad
   res.json({ event });
 });
 
-adminRouter.delete("/events/:eventId", requireAuth, requireRole("admin", "superadmin"), async (req, res) => {
+adminRouter.delete("/events/:eventId", requireAuth, requireRole("college_admin"), async (req, res) => {
   const event = await Event.findById(req.params.eventId);
 
   if (!event) {

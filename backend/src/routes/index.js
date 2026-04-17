@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { adminRequestRouter } from "./modules/admin-request.routes.js";
 import { adminRouter } from "./modules/admin.routes.js";
 import { authRouter } from "./modules/auth.routes.js";
 import { communityRouter } from "./modules/community.routes.js";
@@ -15,6 +16,7 @@ import { userRouter } from "./modules/user.routes.js";
 export const apiRouter = Router();
 
 apiRouter.use("/auth", authRouter);
+apiRouter.use("/admin-requests", adminRequestRouter);
 apiRouter.use("/questions", questionRouter);
 apiRouter.use("/communities", communityRouter);
 apiRouter.use("/resources", resourceRouter);

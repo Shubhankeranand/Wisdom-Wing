@@ -45,7 +45,7 @@ communityRouter.get("/", requireAuth, async (req, res) => {
   const filter = pattern
     ? { $or: [{ name: pattern }, { college: pattern }, { tags: { $in: [pattern] } }] }
     : {};
-  const communities = await Community.find(filter, {
+  const communities = await Community.find({ ...filter, isHidden: { $ne: true } }, {
     name: 1,
     description: 1,
     type: 1,
@@ -112,6 +112,10 @@ communityRouter.get("/:id", requireAuth, async (req, res) => {
     return res.status(404).json({ message: "Community not found." });
   }
 
+  if (community.isHidden && user?.role !== "superadmin") {
+    return res.status(404).json({ message: "Community not found." });
+  }
+
   const [topPosts, topUnansweredPosts, posts, resources, events] = await Promise.all([
     Post.find({ communityId: community._id }).sort({ score: -1, repliesCount: -1 }).limit(5).lean(),
     Post.find({ communityId: community._id, postType: "question", repliesCount: 0 })
@@ -133,7 +137,7 @@ communityRouter.get("/:id", requireAuth, async (req, res) => {
       isMember: community.memberIds?.some((memberId) => String(memberId) === String(user?._id)) ?? false,
       isAdmin:
         community.adminIds?.some((adminId) => String(adminId) === String(user?._id)) ||
-        user?.roles?.includes("superadmin") ||
+        user?.role === "superadmin" ||
         false,
       joinRequestPending:
         community.joinRequests?.some(
@@ -249,8 +253,8 @@ communityRouter.patch("/:id/join-requests/:userId", requireAuth, async (req, res
 
   const canReview =
     String(community.createdBy) === String(currentUser._id) ||
-    currentUser.roles?.includes("admin") ||
-    currentUser.roles?.includes("superadmin");
+    community.adminIds?.some((adminId) => String(adminId) === String(currentUser._id)) ||
+    currentUser.role === "superadmin";
 
   if (!canReview) {
     return res.status(403).json({ message: "Only community admins can review join requests." });
@@ -309,6 +313,10 @@ communityRouter.post("/:id/verification-request", requireAuth, async (req, res) 
 communityRouter.post("/:id/posts", requireAuth, requireMembership, async (req, res) => {
   const { title, content, postType, tags, isAnonymous, resourceUrl } = req.body;
 
+  if (req.community.isFrozen) {
+    return res.status(423).json({ message: "Posting is currently frozen in this community." });
+  }
+
   if (!title || !content) {
     return res.status(400).json({ message: "Title and content are required." });
   }
@@ -333,6 +341,10 @@ communityRouter.post("/:id/posts", requireAuth, requireMembership, async (req, r
 
 communityRouter.post("/:id/resources", requireAuth, requireMembership, async (req, res) => {
   const { title, url, description } = req.body;
+
+  if (req.community.isFrozen) {
+    return res.status(423).json({ message: "Posting is currently frozen in this community." });
+  }
 
   if (!title || !url) {
     return res.status(400).json({ message: "Resource title and link are required." });

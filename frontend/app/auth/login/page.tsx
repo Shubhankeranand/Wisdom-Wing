@@ -16,9 +16,10 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   const routeForUser = (syncedUser: Awaited<ReturnType<typeof loginWithEmail>>) => {
+    if (syncedUser?.role === "superadmin") return "/superadmin";
+    if (syncedUser?.role === "college_admin") return "/admin";
+    if (syncedUser?.role === "college_admin_pending") return "/admin-request";
     if (!syncedUser?.onboardingCompleted) return "/onboarding";
-    if (syncedUser.roles?.includes("superadmin")) return "/superadmin";
-    if (syncedUser.roles?.includes("admin")) return "/admin";
     return "/home";
   };
 
