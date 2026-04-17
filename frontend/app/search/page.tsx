@@ -1,42 +1,51 @@
 "use client";
 
+import Link from "next/link";
+import { useEffect, useState } from "react";
 import { AppShell } from "@/components/app-shell";
-import { QuestionSearch } from "@/components/question-search";
-import { DefaultRightRail } from "@/components/right-rail";
 import { Card } from "@/components/ui/card";
-import { Tag } from "@/components/ui/tag";
-import { searchResults } from "@/lib/mock-data";
+import { GlobalSearchResult, searchService } from "@/lib/services";
 
 export default function SearchPage() {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<GlobalSearchResult[]>([]);
+
+  useEffect(() => {
+    const nextQuery = new URLSearchParams(window.location.search).get("q") ?? "";
+    setQuery(nextQuery);
+  }, []);
+
+  useEffect(() => {
+    if (!query) {
+      setResults([]);
+      return;
+    }
+
+    searchService.global(query).then((payload) => setResults(payload.results));
+  }, [query]);
+
   return (
-    <AppShell
-      title="Search"
-      subtitle="Keyword and semantic search share one focused page so students can find what they meant, not just what they typed."
-      rightRail={<DefaultRightRail />}
-    >
+    <AppShell title="Search" subtitle="Search across posts, communities, users, and tags.">
       <Card className="space-y-4">
-        <input className="w-full rounded-lg border border-border bg-bg px-4 py-4 text-lg outline-none focus:border-primary" defaultValue="DSA resources" />
-        <div className="flex flex-wrap gap-2">
-          <Tag>Type: All</Tag>
-          <Tag>Tags</Tag>
-          <Tag>Date</Tag>
-          <Tag>My College</Tag>
-        </div>
-        <div className="flex gap-3 text-sm">
-          <span className="rounded-full bg-primary px-3 py-1 text-white">Keyword Match</span>
-          <span className="rounded-full border border-border px-3 py-1 text-textMuted">Semantic Match</span>
-        </div>
+        <p className="text-sm text-textMuted">
+          {query ? `Results for "${query}"` : "Type in the top search bar and press Enter."}
+        </p>
       </Card>
-      <QuestionSearch />
       <div className="space-y-4">
-        {searchResults.map((result) => (
-          <Card key={result.id} className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">{result.type}</p>
-            <h3 className="text-xl font-semibold">{result.title}</h3>
-            <p className="text-sm leading-6 text-textMuted">{result.description}</p>
-            <p className="text-xs text-textMuted">{result.meta}</p>
-          </Card>
+        {results.map((result) => (
+          <Link key={`${result.type}-${result.id}`} href={result.href}>
+            <Card className="space-y-1">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">{result.type}</p>
+              <h3 className="text-lg font-semibold">{result.title}</h3>
+              {result.subtitle ? <p className="text-sm text-textMuted">{result.subtitle}</p> : null}
+            </Card>
+          </Link>
         ))}
+        {query && !results.length ? (
+          <Card>
+            <p className="text-sm text-textMuted">No matching posts, communities, or users found.</p>
+          </Card>
+        ) : null}
       </div>
     </AppShell>
   );

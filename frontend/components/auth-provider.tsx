@@ -16,10 +16,12 @@ import {
   signInWithPopup,
   signOut,
   updateProfile,
+  updatePassword,
   type User
 } from "firebase/auth";
 import { getFirebaseAuth, getGoogleProvider } from "@/lib/firebase";
 import { apiFetch } from "@/lib/api";
+import { AppUser } from "@/lib/types";
 
 type RegisterInput = {
   firstName: string;
@@ -31,10 +33,13 @@ type RegisterInput = {
 
 type AuthContextValue = {
   user: User | null;
+  appUser: AppUser | null;
   loading: boolean;
-  registerWithEmail: (input: RegisterInput) => Promise<void>;
-  loginWithEmail: (email: string, password: string) => Promise<void>;
-  loginWithGoogle: () => Promise<void>;
+  refreshAppUser: () => Promise<AppUser | null>;
+  registerWithEmail: (input: RegisterInput) => Promise<AppUser | null>;
+  loginWithEmail: (email: string, password: string) => Promise<AppUser | null>;
+  loginWithGoogle: () => Promise<AppUser | null>;
+  changePassword: (password: string) => Promise<void>;
   logout: () => Promise<void>;
 };
 
@@ -44,10 +49,10 @@ async function syncUserProfile(extra?: Partial<RegisterInput>) {
   const currentUser = getFirebaseAuth().currentUser;
 
   if (!currentUser) {
-    return;
+    return null;
   }
 
-  await apiFetch("/api/auth/session", {
+  const response = await apiFetch<{ user: AppUser }>("/api/auth/session", {
     method: "POST",
     body: JSON.stringify({
       firstName: extra?.firstName ?? currentUser.displayName?.split(" ")[0] ?? "",
@@ -57,10 +62,13 @@ async function syncUserProfile(extra?: Partial<RegisterInput>) {
       avatarUrl: currentUser.photoURL ?? null
     })
   });
+
+  return response.user;
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [appUser, setAppUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -71,10 +79,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (nextUser) {
         try {
-          await syncUserProfile();
+          const syncedUser = await syncUserProfile();
+          setAppUser(syncedUser);
         } catch (error) {
           console.error("Failed to sync session", error);
         }
+      } else {
+        setAppUser(null);
       }
 
       setLoading(false);
@@ -84,7 +95,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
+      appUser,
       loading,
+      refreshAppUser: async () => {
+        const syncedUser = await syncUserProfile();
+        setAppUser(syncedUser);
+        return syncedUser;
+      },
       registerWithEmail: async ({ firstName, lastName, email, password, graduationYear }) => {
         const auth = getFirebaseAuth();
         const credential = await createUserWithEmailAndPassword(auth, email, password);
@@ -92,23 +109,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           displayName: `${firstName} ${lastName}`.trim()
         });
         await sendEmailVerification(credential.user);
-        await syncUserProfile({ firstName, lastName, email, graduationYear });
+        const syncedUser = await syncUserProfile({ firstName, lastName, email, graduationYear });
+        setAppUser(syncedUser);
+        return syncedUser;
       },
       loginWithEmail: async (email, password) => {
         const auth = getFirebaseAuth();
         await signInWithEmailAndPassword(auth, email, password);
-        await syncUserProfile();
+        const syncedUser = await syncUserProfile();
+        setAppUser(syncedUser);
+        return syncedUser;
       },
       loginWithGoogle: async () => {
         const auth = getFirebaseAuth();
         await signInWithPopup(auth, getGoogleProvider());
-        await syncUserProfile();
+        const syncedUser = await syncUserProfile();
+        setAppUser(syncedUser);
+        return syncedUser;
+      },
+      changePassword: async (password) => {
+        const currentUser = getFirebaseAuth().currentUser;
+
+        if (!currentUser) {
+          throw new Error("Sign in again before changing password.");
+        }
+
+        await updatePassword(currentUser, password);
       },
       logout: async () => {
         await signOut(getFirebaseAuth());
+        setAppUser(null);
       }
     }),
-    [loading, user]
+    [appUser, loading, user]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

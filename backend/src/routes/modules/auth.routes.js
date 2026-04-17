@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { requireAuth } from "../../middleware/auth.js";
 import { User } from "../../models/User.js";
+import { serializeUser } from "../../services/user.service.js";
 
 export const authRouter = Router();
 
@@ -16,18 +17,29 @@ authRouter.post("/session", requireAuth, async (req, res) => {
   const { uid, email, name, picture } = req.user;
   const { firstName, lastName, graduationYear, avatarUrl } = req.body;
 
+  const isSuperadmin = email === "shubhankeranand18@gmail.com";
+  const update = {
+    $set: {
+      firebaseUid: uid,
+      email,
+      avatarUrl: avatarUrl || picture || null
+    },
+    $setOnInsert: {
+      firstName: firstName || name?.split(" ")[0] || "",
+      lastName: lastName || name?.split(" ").slice(1).join(" ") || "",
+      fullName: [firstName || name?.split(" ")[0], lastName || name?.split(" ").slice(1).join(" ")]
+        .filter(Boolean)
+        .join(" "),
+      graduationYear: graduationYear ? Number(graduationYear) : undefined
+    },
+    $addToSet: {
+      roles: isSuperadmin ? "superadmin" : "user"
+    }
+  };
+
   const user = await User.findOneAndUpdate(
     { firebaseUid: uid },
-    {
-      $set: {
-        firebaseUid: uid,
-        email,
-        firstName: firstName || name?.split(" ")[0] || "",
-        lastName: lastName || name?.split(" ").slice(1).join(" ") || "",
-        graduationYear: graduationYear ? Number(graduationYear) : undefined,
-        avatarUrl: avatarUrl || picture || null
-      }
-    },
+    update,
     {
       upsert: true,
       new: true,
@@ -37,11 +49,7 @@ authRouter.post("/session", requireAuth, async (req, res) => {
 
   res.json({
     message: "Firebase session synced.",
-    user: {
-      id: user._id,
-      email: user.email,
-      verificationStatus: user.verificationStatus
-    }
+    user: serializeUser(user)
   });
 });
 

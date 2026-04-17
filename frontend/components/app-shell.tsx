@@ -1,13 +1,19 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bell, Command, MoonStar, Plus, Search, SunMedium } from "lucide-react";
+import { Bell, MoonStar, Plus, SunMedium } from "lucide-react";
 import { useAuth } from "@/components/auth-provider";
-import { leftNav } from "@/lib/mock-data";
+import { GlobalSearch } from "@/components/global-search";
 import { useTheme } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+
+const navItems = [
+  { label: "Home", href: "/home" },
+  { label: "Communities", href: "/communities" }
+];
 
 export function AppShell({
   title,
@@ -21,8 +27,30 @@ export function AppShell({
   rightRail?: React.ReactNode;
 }) {
   const { theme, toggleTheme } = useTheme();
-  const { user, logout } = useAuth();
+  const { user, appUser, loading, logout } = useAuth();
   const router = useRouter();
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    if (loading) return;
+
+    if (!user) {
+      router.replace("/auth/login");
+      return;
+    }
+
+    if (appUser && !appUser.onboardingCompleted) {
+      router.replace("/onboarding");
+    }
+  }, [appUser, loading, router, user]);
+
+  if (loading || !user || (appUser && !appUser.onboardingCompleted)) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-bg text-sm text-textMuted">
+        Loading Wisdom Wing...
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-bg text-text">
@@ -31,17 +59,13 @@ export function AppShell({
           <Link href="/" className="text-lg font-bold tracking-tight text-text">
             Wisdom Wing
           </Link>
-          <div className="hidden flex-1 items-center gap-3 rounded-xl border border-border bg-surfaceAlt px-3 py-2 md:flex">
-            <Search className="h-4 w-4 text-textMuted" />
-            <span className="text-sm text-textMuted">Search questions, people, and resources</span>
-            <span className="ml-auto inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-textMuted">
-              <Command className="h-3 w-3" />K
-            </span>
-          </div>
-          <Button className="hidden md:inline-flex">
+          <GlobalSearch />
+          <Link href="/communities" className="hidden md:inline-flex">
+          <Button>
             <Plus className="mr-2 h-4 w-4" />
-            Create Post
+            Join Community
           </Button>
+          </Link>
           <button
             aria-label="Toggle theme"
             onClick={toggleTheme}
@@ -53,19 +77,67 @@ export function AppShell({
             <Bell className="h-4 w-4" />
           </button>
           {user ? (
-            <div className="flex items-center gap-2">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-primary to-accent text-sm font-semibold text-white">
-                {(user.displayName ?? user.email ?? "WW").slice(0, 2).toUpperCase()}
-              </div>
-              <Button
-                variant="ghost"
-                onClick={async () => {
-                  await logout();
-                  router.push("/auth/login");
-                }}
+            <div className="relative">
+              <button
+                aria-label="Open profile menu"
+                onClick={() => setProfileMenuOpen((current) => !current)}
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-primary to-accent text-sm font-semibold text-white"
               >
-                Log out
-              </Button>
+                {(appUser?.fullName ?? user.displayName ?? user.email ?? "WW").slice(0, 2).toUpperCase()}
+              </button>
+              {profileMenuOpen ? (
+                <div className="absolute right-0 top-12 z-40 w-48 rounded-xl border border-border bg-surface p-2 shadow-soft">
+                  <button
+                    className="block w-full rounded-lg px-3 py-2 text-left text-sm text-textMuted hover:bg-surfaceAlt hover:text-text"
+                    onClick={() => {
+                      setProfileMenuOpen(false);
+                      router.push("/dashboard");
+                    }}
+                  >
+                    Dashboard
+                  </button>
+                  <button
+                    className="block w-full rounded-lg px-3 py-2 text-left text-sm text-textMuted hover:bg-surfaceAlt hover:text-text"
+                    onClick={() => {
+                      setProfileMenuOpen(false);
+                      router.push("/dashboard#account-settings");
+                    }}
+                  >
+                    Settings
+                  </button>
+                  {appUser?.roles?.includes("admin") ? (
+                    <button
+                      className="block w-full rounded-lg px-3 py-2 text-left text-sm text-textMuted hover:bg-surfaceAlt hover:text-text"
+                      onClick={() => {
+                        setProfileMenuOpen(false);
+                        router.push("/admin");
+                      }}
+                    >
+                      Admin
+                    </button>
+                  ) : null}
+                  {appUser?.roles?.includes("superadmin") ? (
+                    <button
+                      className="block w-full rounded-lg px-3 py-2 text-left text-sm text-textMuted hover:bg-surfaceAlt hover:text-text"
+                      onClick={() => {
+                        setProfileMenuOpen(false);
+                        router.push("/superadmin");
+                      }}
+                    >
+                      Superadmin
+                    </button>
+                  ) : null}
+                  <button
+                    className="block w-full rounded-lg px-3 py-2 text-left text-sm text-rose-500 hover:bg-rose-500/10"
+                    onClick={async () => {
+                      await logout();
+                      router.push("/auth/login");
+                    }}
+                  >
+                    Log out
+                  </button>
+                </div>
+              ) : null}
             </div>
           ) : (
             <Link href="/auth/login">
@@ -78,18 +150,13 @@ export function AppShell({
       <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:grid-cols-[240px_minmax(0,1fr)_300px] lg:px-6">
         <aside className="hidden lg:block">
           <Card className="sticky top-24 space-y-3 p-4">
-            {leftNav.map((item) => (
+            {navItems.map((item) => (
               <Link
                 key={item.label}
                 href={item.href}
                 className="flex items-center justify-between rounded-lg px-3 py-2 text-sm text-textMuted transition hover:bg-surfaceAlt hover:text-text"
               >
                 <span>{item.label}</span>
-                {item.badge ? (
-                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">
-                    {item.badge}
-                  </span>
-                ) : null}
               </Link>
             ))}
           </Card>

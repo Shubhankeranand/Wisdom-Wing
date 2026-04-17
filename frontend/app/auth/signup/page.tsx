@@ -19,6 +19,13 @@ export default function SignupPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const routeForUser = (syncedUser: Awaited<ReturnType<typeof loginWithGoogle>>) => {
+    if (!syncedUser?.onboardingCompleted) return "/onboarding";
+    if (syncedUser.roles?.includes("superadmin")) return "/superadmin";
+    if (syncedUser.roles?.includes("admin")) return "/admin";
+    return "/home";
+  };
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
@@ -26,7 +33,7 @@ export default function SignupPage() {
 
     try {
       await registerWithEmail(form);
-      router.push("/dashboard");
+      router.push("/onboarding");
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : "Unable to create account");
     } finally {
@@ -104,8 +111,8 @@ export default function SignupPage() {
               setError("");
               setLoading(true);
               try {
-                await loginWithGoogle();
-                router.push("/dashboard");
+                const syncedUser = await loginWithGoogle();
+                router.push(routeForUser(syncedUser));
               } catch (caughtError) {
                 setError(caughtError instanceof Error ? caughtError.message : "Unable to continue");
               } finally {

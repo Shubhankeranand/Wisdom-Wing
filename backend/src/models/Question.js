@@ -8,6 +8,7 @@ const questionSchema = new mongoose.Schema(
     communityId: { type: mongoose.Schema.Types.ObjectId, ref: "Community" },
     tags: [String],
     isAnonymous: { type: Boolean, default: false },
+    upvotes: { type: Number, default: 0 },
     embedding: [Number],
     answersCount: { type: Number, default: 0 },
     aiSummaryStatus: {

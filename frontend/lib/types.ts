@@ -1,23 +1,99 @@
 export type Theme = "light" | "dark";
 
-export type AppRoute =
-  | "/"
-  | "/dashboard"
-  | "/communities"
-  | "/resources"
-  | "/events"
-  | "/messages"
-  | "/admin"
-  | "/search"
-  | "/profile"
-  | "/ask"
-  | "/auth/login"
-  | "/auth/signup";
-
 export type NavItem = {
   label: string;
-  href: AppRoute;
+  href: string;
   badge?: string;
+};
+
+export type AppUser = {
+  id: string;
+  email: string;
+  fullName?: string;
+  username?: string;
+  college?: string;
+  status?: string;
+  interests: string[];
+  avatarUrl?: string;
+  onboardingCompleted: boolean;
+  roles?: Array<"user" | "admin" | "superadmin">;
+  verificationStatus?: string;
+  collegeIdVerification?: {
+    status: "not_submitted" | "pending" | "approved" | "rejected";
+    documentUrl?: string;
+  };
+};
+
+export type Community = {
+  _id: string;
+  name: string;
+  description?: string;
+  type: "college" | "open";
+  college?: string;
+  memberCount?: number;
+  isMember?: boolean;
+  verificationPending?: boolean;
+  joinRequestPending?: boolean;
+  isAdmin?: boolean;
+  activePosts?: number;
+  joinRequests?: Array<{
+    userId: {
+      _id: string;
+      fullName?: string;
+      username?: string;
+      college?: string;
+      status?: string;
+    };
+    status: "pending" | "approved" | "rejected";
+  }>;
+};
+
+export type CommunityQuestion = {
+  _id: string;
+  title: string;
+  body: string;
+  tags: string[];
+  isAnonymous: boolean;
+  upvotes: number;
+  answersCount: number;
+  authorId?: {
+    username?: string;
+    fullName?: string;
+    status?: string;
+  };
+};
+
+export type CommunityPost = {
+  _id: string;
+  title: string;
+  content: string;
+  postType: "question" | "discussion" | "resource";
+  resourceUrl?: string;
+  tags: string[];
+  isAnonymous: boolean;
+  score: number;
+  repliesCount: number;
+  authorId?: {
+    username?: string;
+    fullName?: string;
+    status?: string;
+  };
+};
+
+export type CommunityResource = {
+  _id: string;
+  title: string;
+  url: string;
+  description?: string;
+};
+
+export type CommunityEvent = {
+  _id: string;
+  title: string;
+  description: string;
+  startsAt: string;
+  link?: string;
+  attendeeIds?: string[];
 };
 
 export type FeedPost = {

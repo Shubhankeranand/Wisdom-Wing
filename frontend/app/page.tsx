@@ -94,7 +94,7 @@ export default function LandingPage() {
                   <p className="text-sm font-medium text-text">
                     Best resources for learning DSA as a first-year student?
                   </p>
-                  <p className="mt-2 text-xs text-textMuted">42 upvotes • 16 answers • NIT Delhi</p>
+                  <p className="mt-2 text-xs text-textMuted">Questions become searchable once students post them.</p>
                 </div>
               </div>
             </div>

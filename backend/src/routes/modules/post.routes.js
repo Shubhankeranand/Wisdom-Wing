@@ -1,33 +1,31 @@
 import { Router } from "express";
 import { requireAuth } from "../../middleware/auth.js";
-import { Resource } from "../../models/Resource.js";
-import { applyVote, createReply, getReplies, getUserVote } from "../../services/engagement.service.js";
+import { Post } from "../../models/Post.js";
 import { getCurrentUser } from "../../services/user.service.js";
+import { applyVote, createReply, getReplies, getUserVote } from "../../services/engagement.service.js";
 
-export const resourceRouter = Router();
+export const postRouter = Router();
 
-resourceRouter.get("/", requireAuth, async (_req, res) => {
-  const resources = await Resource.find({}).sort({ createdAt: -1 }).limit(20).lean();
-  res.json({ resources });
-});
-
-resourceRouter.get("/:id", requireAuth, async (req, res) => {
+postRouter.get("/:id", requireAuth, async (req, res) => {
   const user = await getCurrentUser(req.user.uid);
-  const resource = await Resource.findById(req.params.id).lean();
+  const post = await Post.findById(req.params.id)
+    .populate("authorId", "username fullName status")
+    .populate("communityId", "name")
+    .lean();
 
-  if (!resource) {
-    return res.status(404).json({ message: "Resource not found." });
+  if (!post) {
+    return res.status(404).json({ message: "Post not found." });
   }
 
   const [replies, userVote] = await Promise.all([
-    getReplies("resource", resource._id),
-    user ? getUserVote("resource", resource._id, user._id) : 0
+    getReplies("post", post._id),
+    user ? getUserVote("post", post._id, user._id) : 0
   ]);
 
-  res.json({ resource, replies, userVote });
+  res.json({ post, replies, userVote });
 });
 
-resourceRouter.post("/:id/vote", requireAuth, async (req, res) => {
+postRouter.post("/:id/vote", requireAuth, async (req, res) => {
   const user = await getCurrentUser(req.user.uid);
   const value = Number(req.body.value);
 
@@ -40,18 +38,18 @@ resourceRouter.post("/:id/vote", requireAuth, async (req, res) => {
   }
 
   await applyVote({
-    targetType: "resource",
+    targetType: "post",
     targetId: req.params.id,
     userId: user._id,
     value,
-    model: Resource
+    model: Post
   });
 
-  const resource = await Resource.findById(req.params.id, { score: 1 }).lean();
-  res.json({ score: resource?.score ?? 0, userVote: value });
+  const post = await Post.findById(req.params.id, { score: 1 }).lean();
+  res.json({ score: post?.score ?? 0, userVote: value });
 });
 
-resourceRouter.post("/:id/replies", requireAuth, async (req, res) => {
+postRouter.post("/:id/replies", requireAuth, async (req, res) => {
   const user = await getCurrentUser(req.user.uid);
   const { content } = req.body;
 
@@ -64,11 +62,11 @@ resourceRouter.post("/:id/replies", requireAuth, async (req, res) => {
   }
 
   const reply = await createReply({
-    targetType: "resource",
+    targetType: "post",
     targetId: req.params.id,
     userId: user._id,
     content: content.trim(),
-    model: Resource
+    model: Post
   });
 
   res.status(201).json({ reply });

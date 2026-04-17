@@ -1,66 +1,178 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { AppShell } from "@/components/app-shell";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { FormInput, FormTextarea } from "@/components/ui/form-input";
+import { Tabs } from "@/components/ui/tabs";
+import { adminService, AdminOverviewPayload } from "@/lib/services";
+
+type AdminTab = "requests" | "posts" | "events" | "stats";
 
 export default function AdminPage() {
+  const [overview, setOverview] = useState<AdminOverviewPayload | null>(null);
+  const [tab, setTab] = useState<AdminTab>("requests");
+  const [eventForm, setEventForm] = useState({
+    communityId: "",
+    title: "",
+    description: "",
+    startsAt: "",
+    link: ""
+  });
+
+  const loadOverview = () => adminService.overview().then((payload) => {
+    setOverview(payload);
+    setEventForm((current) => ({
+      ...current,
+      communityId: current.communityId || payload.communities[0]?._id || ""
+    }));
+  });
+
+  useEffect(() => {
+    loadOverview();
+  }, []);
+
+  const reviewJoinRequest = async (communityId: string, userId: string, action: "approve" | "reject") => {
+    await adminService.reviewJoinRequest(communityId, userId, action);
+    await loadOverview();
+  };
+
+  const deletePost = async (postId: string) => {
+    await adminService.deletePost(postId);
+    await loadOverview();
+  };
+
+  const createEvent = async () => {
+    await adminService.createEvent(eventForm.communityId, eventForm);
+    setEventForm((current) => ({ ...current, title: "", description: "", startsAt: "", link: "" }));
+    await loadOverview();
+  };
+
+  const deleteEvent = async (eventId: string) => {
+    await adminService.deleteEvent(eventId);
+    await loadOverview();
+  };
+
+  const pendingJoinRequests =
+    overview?.communities.flatMap((community) =>
+      (community.joinRequests ?? [])
+        .filter((request) => request.status === "pending")
+        .map((request) => ({ community, request }))
+    ) ?? [];
+
   return (
-    <AppShell
-      title="Admin Panel"
-      subtitle="A dense moderation surface for verifications, flagged content, and AI oversight."
-      rightRail={
-        <Card className="space-y-3">
-          <h3 className="text-lg font-semibold">AI Moderation Logs</h3>
-          <p className="text-sm text-textMuted">Blocked post for explicit language</p>
-          <p className="text-sm text-textMuted">Flagged AI answer after 6 downvotes</p>
-          <p className="text-sm text-textMuted">Escalated suspicious college ID upload</p>
-        </Card>
-      }
-    >
-      <div className="grid gap-4 md:grid-cols-3">
-        {[
-          ["Pending Verifications", "27"],
-          ["Flagged Posts", "9"],
-          ["Active Users", "1,842"]
-        ].map(([label, value]) => (
-          <Card key={label}>
-            <p className="text-sm text-textMuted">{label}</p>
-            <p className="mt-2 text-3xl font-bold">{value}</p>
-          </Card>
-        ))}
-      </div>
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <Card className="space-y-4">
-          <h3 className="text-xl font-semibold">Verification Queue</h3>
-          <div className="grid grid-cols-[1.5fr_1fr_1fr_1fr] gap-3 rounded-lg border border-border bg-bg px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-textMuted">
-            <span>User</span>
-            <span>College</span>
-            <span>Status</span>
-            <span>Action</span>
-          </div>
-          {["Rahul Jain", "Isha Sethi", "Varun Kapoor"].map((name) => (
-            <div
-              key={name}
-              className="grid grid-cols-[1.5fr_1fr_1fr_1fr] gap-3 rounded-lg border border-border px-4 py-4 text-sm"
-            >
-              <span>{name}</span>
-              <span>NIT Delhi</span>
-              <span className="text-warning">Pending</span>
-              <span className="text-primary">Review</span>
+    <AppShell title="Community Admin" subtitle="Manage communities where you are an admin.">
+      {!overview ? (
+        <Card>Loading admin dashboard...</Card>
+      ) : (
+        <div className="space-y-5">
+          <Tabs
+            tabs={[
+              { label: "Join Requests", value: "requests" },
+              { label: "Post Moderation", value: "posts" },
+              { label: "Events", value: "events" },
+              { label: "Stats", value: "stats" }
+            ]}
+            value={tab}
+            onChange={setTab}
+          />
+
+          {tab === "requests" ? (
+            <Card className="space-y-4">
+              <h3 className="text-xl font-semibold">Join Requests</h3>
+              {pendingJoinRequests.length ? (
+                pendingJoinRequests.map(({ community, request }) => (
+                  <div key={`${community._id}-${request.userId._id}`} className="rounded-lg border border-border p-4">
+                    <p className="font-medium">{request.userId.fullName || request.userId.username}</p>
+                    <p className="text-sm text-textMuted">
+                      {community.name} • {request.userId.college} • {request.userId.status}
+                    </p>
+                    <div className="mt-3 flex gap-2">
+                      <Button onClick={() => reviewJoinRequest(community._id, request.userId._id, "approve")}>
+                        Approve
+                      </Button>
+                      <Button variant="secondary" onClick={() => reviewJoinRequest(community._id, request.userId._id, "reject")}>
+                        Reject
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-textMuted">No pending join requests.</p>
+              )}
+            </Card>
+          ) : null}
+
+          {tab === "posts" ? (
+            <Card className="space-y-4">
+              <h3 className="text-xl font-semibold">Post Moderation</h3>
+              {overview.posts.length ? (
+                overview.posts.map((post) => (
+                  <div key={post._id} className="rounded-lg border border-border p-4">
+                    <p className="font-medium">{post.title}</p>
+                    <p className="text-sm text-textMuted">{post.postType} • {post.score} score</p>
+                    <Button variant="secondary" className="mt-3" onClick={() => deletePost(post._id)}>
+                      Delete Post
+                    </Button>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-textMuted">No posts to moderate.</p>
+              )}
+            </Card>
+          ) : null}
+
+          {tab === "events" ? (
+            <div className="space-y-5">
+              <Card className="space-y-4">
+                <h3 className="text-xl font-semibold">Create Event</h3>
+                <select
+                  className="w-full rounded-lg border border-border bg-bg px-4 py-3 text-sm"
+                  value={eventForm.communityId}
+                  onChange={(event) => setEventForm((current) => ({ ...current, communityId: event.target.value }))}
+                >
+                  {overview.communities.map((community) => (
+                    <option key={community._id} value={community._id}>
+                      {community.name}
+                    </option>
+                  ))}
+                </select>
+                <FormInput label="Title" value={eventForm.title} onChange={(event) => setEventForm((current) => ({ ...current, title: event.target.value }))} />
+                <FormTextarea label="Description" value={eventForm.description} onChange={(event) => setEventForm((current) => ({ ...current, description: event.target.value }))} />
+                <FormInput label="Date and Time" type="datetime-local" value={eventForm.startsAt} onChange={(event) => setEventForm((current) => ({ ...current, startsAt: event.target.value }))} />
+                <FormInput label="Optional Link" value={eventForm.link} onChange={(event) => setEventForm((current) => ({ ...current, link: event.target.value }))} />
+                <Button onClick={createEvent}>Create Event</Button>
+              </Card>
+              <Card className="space-y-4">
+                <h3 className="text-xl font-semibold">Manage Events</h3>
+                {overview.events.map((event) => (
+                  <div key={event._id} className="rounded-lg border border-border p-4">
+                    <p className="font-medium">{event.title}</p>
+                    <p className="text-sm text-textMuted">{new Date(event.startsAt).toLocaleString()}</p>
+                    <Button variant="secondary" className="mt-3" onClick={() => deleteEvent(event._id)}>
+                      Delete Event
+                    </Button>
+                  </div>
+                ))}
+              </Card>
             </div>
-          ))}
-        </Card>
-        <Card className="space-y-4">
-          <h3 className="text-xl font-semibold">Active Review</h3>
-          <div className="rounded-xl border border-border bg-bg p-6 text-center text-sm text-textMuted">
-            College ID preview area
-          </div>
-          <div className="grid gap-3 md:grid-cols-2">
-            <button className="rounded-lg bg-success px-4 py-3 font-semibold text-slate-900">Approve</button>
-            <button className="rounded-lg bg-rose-500 px-4 py-3 font-semibold text-white">Reject</button>
-          </div>
-        </Card>
-      </div>
+          ) : null}
+
+          {tab === "stats" ? (
+            <div className="grid gap-4 md:grid-cols-2">
+              {overview.communities.map((community) => (
+                <Card key={community._id}>
+                  <p className="text-sm text-textMuted">{community.name}</p>
+                  <p className="mt-2 text-3xl font-bold">{community.memberCount ?? 0}</p>
+                  <p className="text-sm text-textMuted">members</p>
+                  <p className="mt-3 text-sm text-textMuted">{community.activePosts ?? 0} active posts loaded</p>
+                </Card>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      )}
     </AppShell>
   );
 }

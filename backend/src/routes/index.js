@@ -3,10 +3,14 @@ import { adminRouter } from "./modules/admin.routes.js";
 import { authRouter } from "./modules/auth.routes.js";
 import { communityRouter } from "./modules/community.routes.js";
 import { eventRouter } from "./modules/event.routes.js";
+import { feedRouter } from "./modules/feed.routes.js";
 import { messageRouter } from "./modules/message.routes.js";
+import { postRouter } from "./modules/post.routes.js";
 import { questionRouter } from "./modules/question.routes.js";
 import { resourceRouter } from "./modules/resource.routes.js";
 import { searchRouter } from "./modules/search.routes.js";
+import { superadminRouter } from "./modules/superadmin.routes.js";
+import { userRouter } from "./modules/user.routes.js";
 
 export const apiRouter = Router();
 
@@ -15,6 +19,10 @@ apiRouter.use("/questions", questionRouter);
 apiRouter.use("/communities", communityRouter);
 apiRouter.use("/resources", resourceRouter);
 apiRouter.use("/events", eventRouter);
+apiRouter.use("/feed", feedRouter);
 apiRouter.use("/messages", messageRouter);
+apiRouter.use("/posts", postRouter);
 apiRouter.use("/search", searchRouter);
+apiRouter.use("/users", userRouter);
 apiRouter.use("/admin", adminRouter);
+apiRouter.use("/superadmin", superadminRouter);

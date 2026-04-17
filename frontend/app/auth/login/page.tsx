@@ -15,14 +15,21 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const routeForUser = (syncedUser: Awaited<ReturnType<typeof loginWithEmail>>) => {
+    if (!syncedUser?.onboardingCompleted) return "/onboarding";
+    if (syncedUser.roles?.includes("superadmin")) return "/superadmin";
+    if (syncedUser.roles?.includes("admin")) return "/admin";
+    return "/home";
+  };
+
   const handleEmailLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
     setLoading(true);
 
     try {
-      await loginWithEmail(email, password);
-      router.push("/dashboard");
+      const syncedUser = await loginWithEmail(email, password);
+      router.push(routeForUser(syncedUser));
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : "Unable to log in");
     } finally {
@@ -75,8 +82,8 @@ export default function LoginPage() {
               setError("");
               setLoading(true);
               try {
-                await loginWithGoogle();
-                router.push("/dashboard");
+                const syncedUser = await loginWithGoogle();
+                router.push(routeForUser(syncedUser));
               } catch (caughtError) {
                 setError(caughtError instanceof Error ? caughtError.message : "Unable to continue");
               } finally {
