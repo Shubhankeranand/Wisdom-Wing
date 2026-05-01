@@ -5,19 +5,33 @@ import { createApp } from "./app.js";
 dotenv.config();
 
 const app = createApp();
-const port = Number(process.env.PORT ?? 5000);
 
-async function bootstrap() {
-  if (process.env.MONGODB_URI) {
-    await mongoose.connect(process.env.MONGODB_URI);
+let isConnected = false;
+
+// Connect to MongoDB once per cold start
+const connectToDB = async () => {
+  if (!isConnected && process.env.MONGODB_URI) {
+    try {
+      await mongoose.connect(process.env.MONGODB_URI);
+      isConnected = true;
+    } catch (error) {
+      console.error("Failed to connect to MongoDB", error);
+    }
   }
+};
 
-  app.listen(port, () => {
-    console.log(`Wisdom Wing API listening on port ${port}`);
-  });
+// Vercel serverless function entrypoint
+export default async function handler(req, res) {
+  await connectToDB();
+  return app(req, res);
 }
 
-bootstrap().catch((error) => {
-  console.error("Failed to start server", error);
-  process.exit(1);
-});
+// Fallback for local development if run directly
+if (process.env.NODE_ENV !== "production") {
+  const port = Number(process.env.PORT ?? 5001);
+  connectToDB().then(() => {
+    app.listen(port, () => {
+      console.log(`Wisdom Wing API listening on port ${port}`);
+    });
+  });
+}
