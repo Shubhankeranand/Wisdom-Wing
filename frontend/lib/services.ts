@@ -156,6 +156,50 @@ export const communityService = {
   joinEvent: (communityId: string, eventId: string) =>
     apiFetch<{ event: CommunityEvent }>(`/api/communities/${communityId}/events/${eventId}/join`, {
       method: "POST"
+    }),
+  reviewJoinRequest: (id: string, userId: string, action: "approve" | "reject") =>
+    apiFetch<{ message: string }>(`/api/communities/${id}/join-requests/${userId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ action })
+    })
+};
+
+export type UserEventsPayload = {
+  events: CommunityEvent[];
+};
+
+export const eventService = {
+  listForMe: () => apiFetch<UserEventsPayload>("/api/events"),
+  listByCommunity: (communityId: string) =>
+    apiFetch<UserEventsPayload>(`/api/events/community/${communityId}`),
+  create: (payload: {
+    type: "community" | "personal";
+    title: string;
+    description: string;
+    startsAt: string;
+    link?: string;
+    communityId?: string;
+  }) =>
+    apiFetch<{ event: CommunityEvent }>("/api/events", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    }),
+  update: (
+    eventId: string,
+    payload: Partial<{
+      title: string;
+      description: string;
+      startsAt: string;
+      link?: string;
+    }>
+  ) =>
+    apiFetch<{ event: CommunityEvent }>(`/api/events/${eventId}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload)
+    }),
+  remove: (eventId: string) =>
+    apiFetch<{ message: string }>(`/api/events/${eventId}`, {
+      method: "DELETE"
     })
 };
 
@@ -179,9 +223,11 @@ export type Reply = {
   _id: string;
   content: string;
   createdAt: string;
+  source_type?: "scraped" | "AI" | "user";
+  source_url?: string;
   authorId?: {
-    username?: string;
-    fullName?: string;
+      username?: string;
+      fullName?: string;
     status?: string;
   };
 };

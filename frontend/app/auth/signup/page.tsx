@@ -50,8 +50,7 @@ export default function SignupPage() {
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-primary">Step 1 of 2</p>
           <h1 className="text-4xl font-bold">Join your college network.</h1>
           <p className="max-w-lg text-base leading-7 text-textMuted">
-            Create an account, then upload your college ID to unlock verified posting, answers, and
-            community access.
+            Create an account to unlock verified posting, answers, and community access.
           </p>
         </div>
       </section>
@@ -104,24 +103,12 @@ export default function SignupPage() {
                 onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
               />
               <input
-                className="rounded-lg border border-border bg-bg px-4 py-3 focus:border-primary focus:outline-none"
+                className="rounded-lg border border-border bg-bg px-4 py-3 focus:border-primary focus:outline-none md:col-span-2"
                 placeholder="Password"
                 type="password"
                 value={form.password}
                 onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))}
               />
-              <input
-                className="rounded-lg border border-border bg-bg px-4 py-3 focus:border-primary focus:outline-none"
-                placeholder="Graduation year"
-                value={form.graduationYear}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, graduationYear: event.target.value }))
-                }
-              />
-            </div>
-            <div className="rounded-xl border-2 border-dashed border-primary/50 bg-primary/5 p-6 text-center">
-              <p className="font-medium">Upload college ID</p>
-              <p className="mt-2 text-sm text-textMuted">Drop a PDF, JPG, or PNG to unlock verified status.</p>
             </div>
             {error ? <p className="text-sm text-rose-500">{error}</p> : null}
             <Button className="w-full" disabled={loading} type="submit">

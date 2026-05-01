@@ -209,6 +209,7 @@ adminRouter.post("/communities/:communityId/events", requireAuth, requireRole("c
   }
 
   const event = await Event.create({
+    type: "community",
     communityId: community._id,
     creatorId: req.currentUser._id,
     title,

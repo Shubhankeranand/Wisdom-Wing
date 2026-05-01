@@ -26,8 +26,23 @@ export async function applyVote({ targetType, targetId, userId, value, model }) 
   return { delta };
 }
 
-export async function createReply({ targetType, targetId, userId, content, model }) {
-  const reply = await Reply.create({ targetType, targetId, authorId: userId, content });
+export async function createReply({
+  targetType,
+  targetId,
+  userId = null,
+  content,
+  model,
+  sourceType = "user",
+  sourceUrl
+}) {
+  const reply = await Reply.create({
+    targetType,
+    targetId,
+    authorId: userId,
+    content,
+    source_type: sourceType,
+    source_url: sourceUrl
+  });
   await model.findByIdAndUpdate(targetId, { $inc: { repliesCount: 1 } });
   return reply.populate("authorId", "username fullName status");
 }

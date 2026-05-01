@@ -124,7 +124,15 @@ userRouter.get("/dashboard", requireAuth, async (req, res) => {
       .lean(),
     Question.find({ authorId: user._id }, { title: 1 }).sort({ createdAt: -1 }).lean(),
     Community.find({ memberIds: user._id }, { name: 1, type: 1, college: 1, slug: 1 }).lean(),
-    Event.find({ attendeeIds: user._id }, { title: 1, startsAt: 1, communityId: 1 })
+    Event.find(
+      {
+        $or: [
+          { type: "personal", creatorId: user._id },
+          { type: "community", communityId: { $in: user.joinedCommunities ?? [] } }
+        ]
+      },
+      { title: 1, startsAt: 1, communityId: 1, type: 1 }
+    )
       .populate("communityId", "name")
       .sort({ startsAt: 1 })
       .lean()

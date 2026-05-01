@@ -37,18 +37,18 @@ export function GlobalSearch({ compact = false }: { compact?: boolean }) {
 
   return (
     <form onSubmit={submit} className={compact ? "relative w-full" : "relative hidden flex-1 md:block"}>
-      <div className="flex items-center gap-3 rounded-xl border border-border bg-surfaceAlt px-3 py-2">
+      <div className="flex items-center gap-3 rounded-2xl border border-border bg-white px-4 py-3 shadow-soft">
         <Search className="h-4 w-4 text-textMuted" />
         <input
-          className="w-full bg-transparent text-sm outline-none"
-          placeholder="Search posts, communities, users, tags"
+          className="w-full bg-transparent text-sm text-text outline-none"
+          placeholder="Search posts, communities, users"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           onFocus={() => setOpen(Boolean(results.length))}
         />
       </div>
       {open && query ? (
-        <div className="absolute left-0 right-0 top-12 z-50 overflow-hidden rounded-xl border border-border bg-surface shadow-soft">
+        <div className="absolute left-0 right-0 top-16 z-50 overflow-hidden rounded-[22px] border border-border bg-surface shadow-glow">
           {isPending ? <p className="px-4 py-3 text-sm text-textMuted">Searching...</p> : null}
           {!isPending && results.length === 0 ? (
             <p className="px-4 py-3 text-sm text-textMuted">No matches found.</p>

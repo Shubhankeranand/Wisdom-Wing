@@ -114,11 +114,23 @@ export default function PostDetailPage() {
               {payload.replies.length ? (
                 payload.replies.map((item) => (
                   <div key={item._id} className="rounded-lg border border-border p-4">
-                    <p className="text-xs text-textMuted">
-                      @{item.authorId?.username ?? "user"} • {item.authorId?.status ?? "Member"} •{" "}
-                      {new Date(item.createdAt).toLocaleString()}
-                    </p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {item.source_type && item.source_type !== "user" ? (
+                        <Tag>{item.source_type === "scraped" ? "Scraped" : "AI Generated"}</Tag>
+                      ) : null}
+                      <p className="text-xs text-textMuted">
+                        {item.authorId?.username
+                          ? `@${item.authorId.username} • ${item.authorId.status ?? "Member"}`
+                          : "Wisdom Wing Assistant"}{" "}
+                        • {new Date(item.createdAt).toLocaleString()}
+                      </p>
+                    </div>
                     <p className="mt-2 text-sm leading-6 text-textMuted">{item.content}</p>
+                    {item.source_url ? (
+                      <a href={item.source_url} target="_blank" className="mt-2 inline-block text-sm font-medium text-primary">
+                        Open source
+                      </a>
+                    ) : null}
                   </div>
                 ))
               ) : (

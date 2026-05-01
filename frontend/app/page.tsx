@@ -29,11 +29,8 @@ export default function LandingPage() {
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 lg:px-6">
           <span className="text-lg font-bold tracking-tight">Wisdom Wing</span>
           <div className="flex items-center gap-3">
-            <Link href="/auth/login" className="text-sm text-textMuted transition hover:text-text">
-              Log in
-            </Link>
-            <Link href="/auth/signup">
-              <Button>Join Your College</Button>
+            <Link href="/auth/login">
+              <Button>Login/SignUp</Button>
             </Link>
           </div>
         </div>
@@ -54,15 +51,10 @@ export default function LandingPage() {
             </p>
           </div>
           <div className="flex flex-wrap gap-4">
-            <Link href="/dashboard">
+            <Link href="/auth/login">
               <Button className="px-6 py-3 text-base">
-                Explore the platform
+                Explore the Platform
                 <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </Link>
-            <Link href="/auth/signup">
-              <Button variant="secondary" className="px-6 py-3 text-base">
-                Start verification
               </Button>
             </Link>
           </div>

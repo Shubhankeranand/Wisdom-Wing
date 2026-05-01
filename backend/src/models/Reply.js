@@ -15,13 +15,19 @@ const replySchema = new mongoose.Schema(
     authorId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true
+      default: null
     },
     content: {
       type: String,
       required: true,
       trim: true
-    }
+    },
+    source_type: {
+      type: String,
+      enum: ["scraped", "AI", "user"],
+      default: "user"
+    },
+    source_url: String
   },
   { timestamps: true }
 );

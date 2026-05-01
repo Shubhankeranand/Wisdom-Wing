@@ -24,33 +24,33 @@ export function PostCard({
   };
 
   return (
-    <Card className="space-y-4">
+    <Card className="space-y-5">
       <div className="flex gap-4">
-        <div className="flex flex-col items-center">
+        <div className="flex min-w-[56px] flex-col items-center rounded-[18px] border border-border/70 bg-surfaceAlt px-2 py-3">
           <button aria-label="Upvote" onClick={() => vote(1)} className="text-primary">
             <ArrowBigUp className="h-6 w-6" />
           </button>
-          <span className="text-sm font-semibold">{post.score}</span>
+          <span className="text-sm font-semibold text-text">{post.score}</span>
           <button aria-label="Downvote" onClick={() => vote(-1)} className="text-textMuted">
             <ArrowBigDown className="h-6 w-6" />
           </button>
         </div>
         <div className="min-w-0 flex-1 space-y-3">
           <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-textMuted">
+              {post.communityId?.name ?? "Campus Feed"}
+            </p>
             <div className="flex flex-wrap items-center gap-2">
-              <Link href={`/posts/${post._id}`} className="text-lg font-semibold hover:text-primary">
+              <Link href={`/posts/${post._id}`} className="text-2xl font-bold tracking-tight text-text hover:text-primary">
                 {post.title}
               </Link>
               <Tag>{post.postType}</Tag>
             </div>
-            <p className="text-xs text-textMuted">
-              {authorLabel}
-              {post.communityId?.name ? ` • ${post.communityId.name}` : ""}
-            </p>
+            <p className="text-xs text-textMuted">{authorLabel}</p>
           </div>
-          <p className="line-clamp-3 text-sm leading-6 text-textMuted">{post.content}</p>
+          <p className="line-clamp-3 text-base leading-7 text-textMuted">{post.content}</p>
           {post.resourceUrl ? (
-            <a href={post.resourceUrl} target="_blank" className="text-sm font-medium text-primary">
+            <a href={post.resourceUrl} target="_blank" className="text-sm font-semibold text-primary">
               Open resource
             </a>
           ) : null}
@@ -59,7 +59,7 @@ export function PostCard({
               <Tag key={tag}>{tag}</Tag>
             ))}
           </div>
-          <div className="flex items-center gap-2 text-xs text-textMuted">
+          <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-textMuted">
             <MessageSquare className="h-4 w-4" />
             {post.repliesCount} replies
           </div>

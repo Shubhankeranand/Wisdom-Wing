@@ -6,6 +6,7 @@ import { CommunityRequest } from "../../models/CommunityRequest.js";
 import { Event } from "../../models/Event.js";
 import { Post } from "../../models/Post.js";
 import { Resource } from "../../models/Resource.js";
+import { runAutoReplyForPost } from "../../services/post-auto-answer.service.js";
 import { User } from "../../models/User.js";
 import { getCurrentUser } from "../../services/user.service.js";
 
@@ -127,7 +128,7 @@ communityRouter.get("/:id", requireAuth, async (req, res) => {
       .sort({ createdAt: -1 })
       .lean(),
     Resource.find({ communityId: community._id }).sort({ createdAt: -1 }).lean(),
-    Event.find({ communityId: community._id }).sort({ startsAt: 1 }).lean()
+    Event.find({ type: "community", communityId: community._id }).sort({ startsAt: 1 }).lean()
   ]);
 
   res.json({
@@ -336,6 +337,10 @@ communityRouter.post("/:id/posts", requireAuth, requireMembership, async (req, r
     isAnonymous: Boolean(isAnonymous)
   });
 
+  if (post.postType === "question") {
+    await runAutoReplyForPost(post._id);
+  }
+
   res.status(201).json({ post });
 });
 
@@ -370,6 +375,7 @@ communityRouter.post("/:id/events", requireAuth, requireMembership, async (req, 
   }
 
   const event = await Event.create({
+    type: "community",
     title: title.trim(),
     description: description.trim(),
     startsAt: new Date(startsAt),

@@ -94,11 +94,21 @@ export type CommunityResource = {
 
 export type CommunityEvent = {
   _id: string;
+  type?: "community" | "personal";
   title: string;
   description: string;
   startsAt: string;
   link?: string;
   attendeeIds?: string[];
+  communityId?: {
+    _id: string;
+    name: string;
+  } | string | null;
+  creatorId?: {
+    _id?: string;
+    fullName?: string;
+    username?: string;
+  } | string;
 };
 
 export type FeedPost = {
