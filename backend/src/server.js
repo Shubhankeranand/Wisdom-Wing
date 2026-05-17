@@ -26,8 +26,8 @@ export default async function handler(req, res) {
   return app(req, res);
 }
 
-// Fallback for local development if run directly
-if (process.env.NODE_ENV !== "production") {
+// Start server unless running in Vercel serverless environment
+if (!process.env.VERCEL) {
   const port = Number(process.env.PORT ?? 5001);
   connectToDB().then(() => {
     app.listen(port, () => {
